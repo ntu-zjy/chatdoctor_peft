@@ -1,42 +1,21 @@
 from datasets import Dataset
 from transformers import AutoModelForCausalLM, DataCollatorForSeq2Seq, TrainingArguments, Trainer, LlamaTokenizer
-from peft import PrefixTuningConfig, PromptEncoderConfig, LoraConfig, get_peft_model, TaskType, PeftModel, PromptEncoderReparameterizationType, PromptTuningConfig, PromptTuningInit
+from peft import PrefixTuningConfig, PromptEncoderConfig, PeftConfig, get_peft_model, TaskType, PeftModel, PromptEncoderReparameterizationType, PromptTuningConfig, PromptTuningInit
 from datasets import load_dataset
 import torch
 
 tokenizer_path = "./pretrained_weight/tokenizer_weight"
 LLM_path = "./pretrained_weight/LLM_weight"
-Peft_path = "./lora/checkpoint-221500/"
+Peft_path = "checkpoint-221500"
 
-model = AutoModelForCausalLM.from_pretrained(LLM_path, low_cpu_mem_usage=True)
+config = PeftConfig.from_pretrained(Peft_path)
 
-target_modules = ["q_proj", "k_proj"]
-lora_config = LoraConfig(task_type=TaskType.CAUSAL_LM, 
-                         r=4, 
-                         lora_alpha=16, 
-                         target_modules=target_modules, 
-                         lora_dropout=0.1, 
-                         bias="none",
-                         modules_to_save=["word_embeddings"])
-                         
-ptuning_config = PromptEncoderConfig(
-                        task_type=TaskType.CAUSAL_LM, 
-                        num_virtual_tokens=10,
-                        encoder_reparameterization_type=PromptEncoderReparameterizationType.MLP,
-                        encoder_dropout=0.1, 
-                        encoder_num_layers=5, 
-                        encoder_hidden_size=1024
-                 )
-                 
-prefix_config = PrefixTuningConfig(task_type=TaskType.CAUSAL_LM, 
-                                   num_virtual_tokens=10, 
-                                   prefix_projection=False)
-                 
-model = get_peft_model(model, lora_config)
+model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, load_in_8bit=True, low_cpu_mem_usage=True)
+
 peft_model = PeftModel.from_pretrained(model=model, model_id=Peft_path)
 peft_model = peft_model.cuda()
 
-tokenizer = LlamaTokenizer.from_pretrained(tokenizer_path)
+tokenizer = LlamaTokenizer.from_pretrained(config.base_model_name_or_path)
 if tokenizer.pad_token is None:
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 generator = peft_model.generate

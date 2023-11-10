@@ -1,10 +1,13 @@
 from datasets import Dataset
 from transformers import AutoModelForCausalLM, DataCollatorForSeq2Seq, TrainingArguments, Trainer, LlamaTokenizer
-from peft import LoraConfig, get_peft_model, TaskType
+from peft import LoraConfig, get_peft_model, TaskType, get_peft_model_state_dict
 from datasets import load_dataset
+import torch
+import sys
 
-ds = load_dataset("json", data_files="./data/chatdoctor5k.json")
+ds = load_dataset("json", data_files="./data/chatdoctor_test.json")
 ds = ds['train']
+print(ds)
 tokenizer_path = "./pretrained_weight/tokenizer_weight"
 LLM_path = "./pretrained_weight/LLM_weight"
 
@@ -31,7 +34,7 @@ def process_func(example):
     }
 
 tokenized_ds = ds.map(process_func, remove_columns=ds.column_names)
-model = AutoModelForCausalLM.from_pretrained(LLM_path, low_cpu_mem_usage=True)
+model = AutoModelForCausalLM.from_pretrained(LLM_path, load_in_8bit=True, torch_dtype=torch.float16, low_cpu_mem_usage=True)
 
 
 target_modules = ["q_proj", "v_proj"]
@@ -45,16 +48,16 @@ lora_config = LoraConfig(task_type=TaskType.CAUSAL_LM,
 
 model = get_peft_model(model, lora_config)
 model.print_trainable_parameters()
-
+output_dir="./lora/5k"
 args = TrainingArguments(
-    output_dir="./lora/5k",
-    logging_dir="./lora/loggin",
+    output_dir=output_dir,
     learning_rate=3e-5,
-    per_device_train_batch_size=2,
-    gradient_accumulation_steps=2,
+    fp16=True,
+    per_device_train_batch_size=1,
+    gradient_accumulation_steps=1,
     warmup_steps=100,
     logging_steps=10,
-    num_train_epochs=2,
+    num_train_epochs=1,
     save_steps=2000,    
 )
 trainer = Trainer(
@@ -63,4 +66,20 @@ trainer = Trainer(
     train_dataset=tokenized_ds,
     data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
 )
+old_state_dict = model.state_dict
+model.state_dict = (
+    lambda self, *_, **__: get_peft_model_state_dict(
+        self, old_state_dict()
+    )
+).__get__(model, type(model))
+
+if torch.__version__ >= "2" and sys.platform != "win32":
+    model = torch.compile(model)
+
+#trainer.train(resume_from_checkpoint=resume_from_checkpoint)
 trainer.train()
+
+trainer.model.save_pretrained("results")
+tokenizer.save_pretrained("results")
+
+
