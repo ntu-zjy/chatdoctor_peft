@@ -59,7 +59,6 @@ model = AutoModelForCausalLM.from_pretrained(
                         bnb_4bit_quant_type="nf4", 
                         bnb_4bit_use_double_quant=True,
                 )
-
 #
 lora_config = LoraConfig(task_type=TaskType.CAUSAL_LM, 
                          r=8, 
