@@ -3,6 +3,7 @@ import torch
 from transformers import AutoModelForCausalLM, DataCollatorForSeq2Seq, TrainingArguments, Trainer, LlamaTokenizer
 from peft import PrefixTuningConfig, get_peft_model, TaskType, get_peft_model_state_dict
 from datasets import load_dataset
+import sys
 
 #ds = load_dataset("json", data_files="./data/HealthCareMagic-100k.json")
 ds_train = load_dataset("json", data_files="./data/chatdoctor5k_train.json")
@@ -73,13 +74,13 @@ output_dir="./prefix_5k_fp16/checkpoint"
 log_dir="./prefix_5k_fp16/log"
 args = TrainingArguments(
     output_dir=output_dir,
-    learning_rate=3e-5,
+    learning_rate=2e-5,
     per_device_train_batch_size=1, 
-    gradient_accumulation_steps=2,
+    gradient_accumulation_steps=1,
     #warmup_steps=100,
     logging_steps=10,
     logging_dir=log_dir,
-    num_train_epochs=3,
+    num_train_epochs=1,
     save_steps=2000,    
 )
 trainer = Trainer(
@@ -89,6 +90,16 @@ trainer = Trainer(
     eval_dataset=tokenized_ds_val,
     data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
 )
+old_state_dict = model.state_dict
+model.state_dict = (
+    lambda self, *_, **__: get_peft_model_state_dict(
+        self, old_state_dict()
+    )
+).__get__(model, type(model))
+
+if torch.__version__ >= "2" and sys.platform != "win32":
+    model = torch.compile(model)
+
 trainer.train()
 
 trainer.model.save_pretrained("./prefix_5k_fp16/results")

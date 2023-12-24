@@ -1,8 +1,9 @@
 from datasets import Dataset
 import torch
 from transformers import AutoModelForCausalLM, DataCollatorForSeq2Seq, TrainingArguments, Trainer, LlamaTokenizer, AutoTokenizer
-from peft import PromptTuningConfig, PromptTuningInit, get_peft_model, TaskType, PromptEncoderReparameterizationType
+from peft import PromptTuningConfig, PromptTuningInit, get_peft_model, TaskType, get_peft_model_state_dict
 from datasets import load_dataset
+import sys
 
 #ds = load_dataset("json", data_files="./data/HealthCareMagic-100k.json")
 ds_train = load_dataset("json", data_files="./data/chatdoctor5k_train.json")
@@ -28,18 +29,6 @@ def generate_prompt(example):
                 {example["input"]}
                 
                 ### Response:
-                {example["output"]}"""
-
-def generate_prompt_old(example):
-    return f"""Below is an instruction that describes a task.
-
-                ### Instruction:
-                {example["instruction"]}
-                
-                ### Patient:
-                {example["input"]}
-                
-                ### Doctor:
                 {example["output"]}"""
 
 def process_func(example):
@@ -80,6 +69,7 @@ model = AutoModelForCausalLM.from_pretrained(
 soft_prompt_tuning_config = PromptTuningConfig(
             task_type=TaskType.CAUSAL_LM, 
             num_virtual_tokens=20,
+            prompt_tuning_init=PromptTuningInit.RANDOM,
             )
 
 hard_prompt_tuning_config = PromptTuningConfig(
@@ -95,12 +85,12 @@ output_dir="./prompt_tuning_5k_fp16/checkpoint"
 log_dir="./prompt_tuning_5k_fp16/log"
 args = TrainingArguments(
     output_dir=output_dir,
-    learning_rate=3e-5,
+    learning_rate=2e-5,
     per_device_train_batch_size=1, 
-    gradient_accumulation_steps=2,
+    gradient_accumulation_steps=1,
     logging_steps=10,
     logging_dir=log_dir,
-    num_train_epochs=3,
+    num_train_epochs=1,
     save_steps=2000,    
 )
 trainer = Trainer(
@@ -110,6 +100,15 @@ trainer = Trainer(
     eval_dataset=tokenized_ds_val,
     data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
 )
+old_state_dict = model.state_dict
+model.state_dict = (
+    lambda self, *_, **__: get_peft_model_state_dict(
+        self, old_state_dict()
+    )
+).__get__(model, type(model))
+
+if torch.__version__ >= "2" and sys.platform != "win32":
+    model = torch.compile(model)
 trainer.train()
 
 trainer.model.save_pretrained("./prompt_tuning_5k_fp16/results")

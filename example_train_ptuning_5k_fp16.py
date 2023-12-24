@@ -1,8 +1,9 @@
 from datasets import Dataset
 import torch
 from transformers import AutoModelForCausalLM, DataCollatorForSeq2Seq, TrainingArguments, Trainer, LlamaTokenizer, AutoTokenizer
-from peft import PromptEncoderConfig, get_peft_model, TaskType, PromptEncoderReparameterizationType
+from peft import PromptEncoderConfig, get_peft_model, TaskType, PromptEncoderReparameterizationType, get_peft_model_state_dict
 from datasets import load_dataset
+import sys
 
 #ds = load_dataset("json", data_files="./data/HealthCareMagic-100k.json")
 ds_train = load_dataset("json", data_files="./data/chatdoctor5k_train.json")
@@ -30,18 +31,6 @@ def generate_prompt(example):
                 ### Response:
                 {example["output"]}"""
 
-def generate_prompt_old(example):
-    return f"""Below is an instruction that describes a task.
-
-                ### Instruction:
-                {example["instruction"]}
-                
-                ### Patient:
-                {example["input"]}
-                
-                ### Doctor:
-                {example["output"]}"""
-
 def process_func(example):
     MAX_LENGTH = 512
     input_ids, attention_mask, labels = [], [], []
@@ -66,8 +55,10 @@ tokenized_ds_train = ds_train.map(process_func, remove_columns=ds_train.column_n
 tokenized_ds_val = ds_val.map(process_func, remove_columns=ds_val.column_names)
 
 # check data processing
+"""
 print(tokenizer.decode(tokenized_ds_train[0]["input_ids"]))
 print(tokenizer.decode(list(filter(lambda x: x != -100, tokenized_ds_train[0]["labels"]))))
+"""
 
 # for Tesla V100
 model = AutoModelForCausalLM.from_pretrained(
@@ -90,12 +81,12 @@ output_dir="./ptuning_5k_fp16/checkpoint"
 log_dir="./ptuning_5k_fp16/log"
 args = TrainingArguments(
     output_dir=output_dir,
-    learning_rate=3e-5,
+    learning_rate=2e-5,
     per_device_train_batch_size=1, 
-    gradient_accumulation_steps=2,
+    gradient_accumulation_steps=1,
     logging_steps=10,
     logging_dir=log_dir,
-    num_train_epochs=3,
+    num_train_epochs=1,
     save_steps=2000,    
 )
 trainer = Trainer(
@@ -105,6 +96,16 @@ trainer = Trainer(
     eval_dataset=tokenized_ds_val,
     data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
 )
+old_state_dict = model.state_dict
+model.state_dict = (
+    lambda self, *_, **__: get_peft_model_state_dict(
+        self, old_state_dict()
+    )
+).__get__(model, type(model))
+
+if torch.__version__ >= "2" and sys.platform != "win32":
+    model = torch.compile(model)
+
 trainer.train()
 
 trainer.model.save_pretrained("./ptuning_5k_fp16/results")

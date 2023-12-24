@@ -8,6 +8,12 @@ from tqdm import tqdm
 import os
 import sys
 
+def generate_input(pmsg, instruction):
+    return f"""<s>[INST] <<SYS>>
+              {instruction}
+              <</SYS>>
+              Patient: {pmsg} [/INST]
+              Doctor: """
 
 @torch.no_grad()
 def go(pmsg, instruction):
@@ -19,8 +25,6 @@ def go(pmsg, instruction):
     msg = human_invitation+pmsg
     
     fulltext = instruction + " \n\n" + msg + "\n\n" + invitation
-    #fulltext = msg + "\n\n" + invitation
-
     #print('SENDING==========')
     #print(fulltext)
     #print('==========')
@@ -37,10 +41,10 @@ def go(pmsg, instruction):
         pad_token_id=tokenizer.eos_token_id,
         num_return_sequences=1,
         do_sample=True,
-        #repetition_penalty=1.1, # 1.0 means 'off'. unfortunately if we penalize it it will not output Sphynx:
-        #temperature=0.5, # default: 1.0
-        #top_k = 50, # default: 50
-        #top_p = 1.0, # default: 1.0
+        repetition_penalty=1.1, # 1.0 means 'off'. unfortunately if we penalize it it will not output Sphynx:
+        temperature=0.5, # default: 1.0
+        top_k = 50, # default: 50
+        top_p = 0.9, # default: 1.0
         #early_stopping=False,
     )
     #print("generated_ids:", generated_ids)
