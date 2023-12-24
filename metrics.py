@@ -80,6 +80,9 @@ import statistics
 from tqdm import tqdm
 
 for target, origin in tqdm(zip(target_data_json, origin_data_json)):
+  if target["output"] == '':
+    print("output is empty")
+    continue
   sim.append(cal_sim(target["output"],origin["output"]))
   s1, s2, s3, s4 = cal_bleu(target["output"],origin["output"])
   r1, r2, rl = cal_rouge(target["output"],origin["output"])

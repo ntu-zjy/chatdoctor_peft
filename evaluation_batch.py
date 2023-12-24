@@ -8,13 +8,6 @@ from tqdm import tqdm
 import os
 import sys
 
-def generate_input(pmsg, instruction):
-    return f"""<s>[INST] <<SYS>>
-              {instruction}
-              <</SYS>>
-              Patient: {pmsg} [/INST]
-              Doctor: """
-
 @torch.no_grad()
 def go(pmsg, instruction):
     invitation = "Doctor: "
@@ -55,10 +48,11 @@ def go(pmsg, instruction):
     text_without_prompt = generated_text[len(fulltext):]
 
     response = text_without_prompt
-    response = response.split(human_invitation)[0]
-
-    response.strip()
     #print("response:", response)
+    response = response.split(human_invitation)[0]
+    #print("response:", response)   
+    response.strip()
+    
     return response
 
 

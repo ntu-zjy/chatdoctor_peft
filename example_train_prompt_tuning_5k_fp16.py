@@ -54,10 +54,6 @@ def process_func(example):
 tokenized_ds_train = ds_train.map(process_func, remove_columns=ds_train.column_names)
 tokenized_ds_val = ds_val.map(process_func, remove_columns=ds_val.column_names)
 
-# check data processing
-print(tokenizer.decode(tokenized_ds_train[0]["input_ids"]))
-print(tokenizer.decode(list(filter(lambda x: x != -100, tokenized_ds_train[0]["labels"]))))
-
 # for Tesla V100
 model = AutoModelForCausalLM.from_pretrained(
                         LLM_path, 

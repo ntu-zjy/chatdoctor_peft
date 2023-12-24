@@ -65,7 +65,7 @@ model = AutoModelForCausalLM.from_pretrained(
 prefix_config = PrefixTuningConfig(
             task_type=TaskType.CAUSAL_LM, 
             num_virtual_tokens=10, 
-            #prefix_projection=True,
+            prefix_projection=True,
             )
 
 model = get_peft_model(model, prefix_config)
