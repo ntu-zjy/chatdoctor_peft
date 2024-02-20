@@ -8,6 +8,9 @@ from tqdm import tqdm
 import os
 import sys
 
+torch.random.manual_seed(0)
+torch.cuda.manual_seed(0)
+
 @torch.no_grad()
 def go(pmsg, instruction):
     invitation = "Doctor: "
