@@ -32,7 +32,7 @@ def go(pmsg, instruction):
     in_tokens = len(gen_in)
     generated_ids = peft_model.generate(
         input_ids=gen_in,
-        max_new_tokens=256,
+        max_new_tokens=1000,
         use_cache=True,
         pad_token_id=tokenizer.eos_token_id,
         num_return_sequences=1,

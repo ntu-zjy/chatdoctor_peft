@@ -75,11 +75,10 @@ output_dir="./lora_5k/results/checkpoint"
 
 args = TrainingArguments(
     output_dir=output_dir,
-    learning_rate=3e-5,
+    learning_rate=2e-5,
     fp16=True,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=1,
-    warmup_steps=100,
     logging_steps=10,
     num_train_epochs=1,
     save_steps=2000,    

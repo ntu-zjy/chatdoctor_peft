@@ -67,7 +67,7 @@ model = AutoModelForCausalLM.from_pretrained(
 prefix_config = PrefixTuningConfig(
             task_type=TaskType.CAUSAL_LM, 
             num_virtual_tokens=10, 
-            prefix_projection=True,
+            prefix_projection=False,
             )
 
 model = get_peft_model(model, prefix_config)
@@ -79,7 +79,6 @@ args = TrainingArguments(
     learning_rate=2e-5,
     per_device_train_batch_size=1, 
     gradient_accumulation_steps=1,
-    #warmup_steps=100,
     logging_steps=10,
     logging_dir=log_dir,
     num_train_epochs=1,
