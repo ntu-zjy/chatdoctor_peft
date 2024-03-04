@@ -5,6 +5,8 @@ from peft import PromptEncoderConfig, get_peft_model, TaskType, PromptEncoderRep
 from datasets import load_dataset
 import sys
 
+torch.random.manual_seed(0)
+torch.cuda.manual_seed(0)
 #ds = load_dataset("json", data_files="./data/HealthCareMagic-100k.json")
 ds_train = load_dataset("json", data_files="./data/chatdoctor5k_train.json")
 ds_train = ds_train['train']

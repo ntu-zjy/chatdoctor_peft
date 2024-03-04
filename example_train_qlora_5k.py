@@ -5,6 +5,8 @@ from datasets import load_dataset
 import torch
 import sys
 
+torch.random.manual_seed(0)
+torch.cuda.manual_seed(0)
 ds = load_dataset("json", data_files="./data/HealthCareMagic-100k.json")
 #ds = load_dataset("json", data_files="./data/chatdoctor5k.json")
 ds = ds['train']
